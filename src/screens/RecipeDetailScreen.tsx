@@ -1,4 +1,4 @@
-// Recipe Detail Screen
+// Recipe Detail Screen — with reviews, video, download, enhanced share
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -8,20 +8,47 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  Share,
   ActivityIndicator,
+  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING, BORDER_RADIUS } from "../constants";
 import { Recipe } from "../types";
-import { ChatBot } from "../components";
+import {
+  ChatBot,
+  StarRating,
+  ReviewSection,
+  VideoPlayer,
+  shareRecipe,
+  shareIngredientsList,
+} from "../components";
 import { getRecipeById } from "../services/recipeService";
+import { getUserRecipeById } from "../services/userRecipeService";
 import { getPlaceholderImage } from "../services/unsplashService";
 import { useAuth } from "../hooks/useAuth";
 import { addToFavorites, removeFromFavorites } from "../services/recipeService";
+import {
+  downloadRecipe,
+  isRecipeDownloaded,
+  removeOfflineRecipe,
+} from "../services/offlineService";
+import { getAverageRating } from "../services/reviewService";
+import { RouteProp } from "@react-navigation/native"; // Assuming RouteProp comes from here
+
+interface RecipeDetailRouteProp extends RouteProp<
+  {
+    RecipeDetail: {
+      recipeId?: string;
+      source?: "local" | "user" | "local_dataset";
+      recipe?: Recipe;
+    };
+  },
+  "RecipeDetail"
+> {}
 
 interface RecipeDetailScreenProps {
   recipeId: string;
-  source?: "local" | "mealdb";
+  source?: "local" | "user" | "local_dataset";
   initialRecipe?: Recipe;
   onBack: () => void;
 }
@@ -39,6 +66,8 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const [isFavorite, setIsFavorite] = useState(false);
   const [showChatBot, setShowChatBot] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [avgRating, setAvgRating] = useState({ average: 0, count: 0 });
   const { user } = useAuth();
 
   useEffect(() => {
@@ -49,14 +78,26 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
   useEffect(() => {
     if (user && recipe) {
-      setIsFavorite(user.favorites.includes(recipe.id));
+      setIsFavorite(user.favorites?.includes(recipe.id) || false);
     }
   }, [user, recipe]);
+
+  useEffect(() => {
+    if (recipe) {
+      checkDownloaded();
+      loadRating();
+    }
+  }, [recipe]);
 
   const loadRecipe = async () => {
     setIsLoading(true);
     try {
-      const fetchedRecipe = await getRecipeById(recipeId, source);
+      let fetchedRecipe: Recipe | null = null;
+      if (source === "user") {
+        fetchedRecipe = await getUserRecipeById(recipeId);
+      } else {
+        fetchedRecipe = await getRecipeById(recipeId);
+      }
       setRecipe(fetchedRecipe);
     } catch (error) {
       console.error("Error loading recipe:", error);
@@ -65,9 +106,22 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     }
   };
 
+  const checkDownloaded = async () => {
+    if (recipe) {
+      const downloaded = await isRecipeDownloaded(recipe.id);
+      setIsDownloaded(downloaded);
+    }
+  };
+
+  const loadRating = async () => {
+    if (recipe) {
+      const rating = await getAverageRating(recipe.id);
+      setAvgRating(rating);
+    }
+  };
+
   const handleToggleFavorite = async () => {
     if (!user || !recipe) return;
-
     try {
       if (isFavorite) {
         await removeFromFavorites(user.id, recipe.id);
@@ -83,13 +137,40 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   const handleShare = async () => {
     if (!recipe) return;
 
-    try {
-      await Share.share({
-        message: `Check out this recipe: ${recipe.title}\n\nIngredients:\n${recipe.ingredients.slice(0, 5).join("\n")}...`,
-        title: recipe.title,
-      });
-    } catch (error) {
-      console.error("Error sharing:", error);
+    Alert.alert("Share Recipe", "Choose how to share", [
+      { text: "Full Recipe", onPress: () => shareRecipe(recipe) },
+      { text: "Shopping List", onPress: () => shareIngredientsList(recipe) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const handleDownload = async () => {
+    if (!recipe) return;
+
+    if (isDownloaded) {
+      Alert.alert(
+        "Remove Download",
+        "Remove this recipe from offline storage?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              await removeOfflineRecipe(recipe.id);
+              setIsDownloaded(false);
+            },
+          },
+        ],
+      );
+    } else {
+      const success = await downloadRecipe(recipe);
+      if (success) {
+        setIsDownloaded(true);
+        Alert.alert("Downloaded!", "Recipe saved for offline use.");
+      } else {
+        Alert.alert("Error", "Could not download recipe.");
+      }
     }
   };
 
@@ -104,7 +185,7 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
   if (!recipe) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>😕</Text>
+        <Ionicons name="sad-outline" size={48} color={COLORS.textLight} />
         <Text style={styles.errorText}>Recipe not found</Text>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>Go Back</Text>
@@ -130,22 +211,34 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         />
         <View style={styles.imageOverlay} />
 
-        {/* Navigation */}
         <View style={styles.navigation}>
           <TouchableOpacity style={styles.navButton} onPress={onBack}>
-            <Text style={styles.navButtonText}>←</Text>
+            <Ionicons name="arrow-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
           <View style={styles.navActions}>
+            <TouchableOpacity style={styles.navButton} onPress={handleDownload}>
+              <Ionicons
+                name={isDownloaded ? "cloud-done" : "cloud-download-outline"}
+                size={22}
+                color={isDownloaded ? COLORS.primary : COLORS.text}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.navButton}
               onPress={handleToggleFavorite}
             >
-              <Text style={styles.navButtonText}>
-                {isFavorite ? "❤️" : "🤍"}
-              </Text>
+              <Ionicons
+                name={isFavorite ? "heart" : "heart-outline"}
+                size={22}
+                color={isFavorite ? "#FF4757" : COLORS.text}
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.navButton} onPress={handleShare}>
-              <Text style={styles.navButtonText}>↗️</Text>
+              <Ionicons
+                name="share-social-outline"
+                size={22}
+                color={COLORS.text}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -153,19 +246,91 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         {/* Title on Image */}
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{recipe.title}</Text>
-          {recipe.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{recipe.category}</Text>
-            </View>
-          )}
+          <View style={styles.titleMeta}>
+            {recipe.category && (
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{recipe.category}</Text>
+              </View>
+            )}
+            {avgRating.count > 0 && (
+              <View style={styles.ratingInline}>
+                <StarRating rating={avgRating.average} size={14} />
+                <Text style={styles.ratingCountText}>({avgRating.count})</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Quick Info Bar */}
+        {(recipe.prepTime || recipe.servings || recipe.source === "user") && (
+          <View style={styles.infoBar}>
+            {recipe.prepTime && (
+              <View style={styles.infoItem}>
+                <Ionicons
+                  name="timer-outline"
+                  size={16}
+                  color={COLORS.primary}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.infoText}>{recipe.prepTime} min</Text>
+              </View>
+            )}
+            {recipe.servings && (
+              <View style={styles.infoItem}>
+                <Ionicons
+                  name="people-outline"
+                  size={16}
+                  color={COLORS.primary}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.infoText}>{recipe.servings} servings</Text>
+              </View>
+            )}
+            {recipe.source === "user" && (
+              <View style={styles.infoItem}>
+                <Ionicons
+                  name="person-outline"
+                  size={16}
+                  color={COLORS.primary}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.infoText}>Community</Text>
+              </View>
+            )}
+            {isDownloaded && (
+              <View style={styles.infoItem}>
+                <Ionicons
+                  name="cloud-done-outline"
+                  size={16}
+                  color={COLORS.primary}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.infoText}>Offline</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Ingredients Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📝 Ingredients</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: SPACING.md,
+            }}
+          >
+            <Ionicons
+              name="list"
+              size={20}
+              color={COLORS.primary}
+              style={{ marginRight: SPACING.xs }}
+            />
+            <Text style={styles.sectionTitle}>Ingredients</Text>
+          </View>
           <View style={styles.ingredientsList}>
             {recipe.ingredients.map((ingredient, index) => (
               <View key={index} style={styles.ingredientItem}>
@@ -178,9 +343,29 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
         {/* Instructions Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👨‍🍳 Instructions</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: SPACING.md,
+            }}
+          >
+            <Ionicons
+              name="book"
+              size={20}
+              color={COLORS.primary}
+              style={{ marginRight: SPACING.xs }}
+            />
+            <Text style={styles.sectionTitle}>Instructions</Text>
+          </View>
           <Text style={styles.instructions}>{recipe.instructions}</Text>
         </View>
+
+        {/* Video Section */}
+        <VideoPlayer videoUrl={recipe.videoUrl} recipeTitle={recipe.title} />
+
+        {/* Reviews Section */}
+        <ReviewSection recipeId={recipe.id} />
 
         {/* Spacer for FAB */}
         <View style={{ height: 100 }} />
@@ -188,7 +373,12 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
 
       {/* AI Chef FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => setShowChatBot(true)}>
-        <Text style={styles.fabIcon}>👨‍🍳</Text>
+        <Ionicons
+          name="chatbubble-ellipses"
+          size={22}
+          color="#FFFFFF"
+          style={{ marginRight: SPACING.xs }}
+        />
         <Text style={styles.fabText}>Ask AI Chef</Text>
       </TouchableOpacity>
 
@@ -290,22 +480,64 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
+  titleMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
+  },
   categoryBadge: {
     alignSelf: "flex-start",
     backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.round,
-    marginTop: SPACING.sm,
   },
   categoryText: {
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "600",
   },
+  ratingInline: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ratingCountText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: "600",
+  },
   content: {
     flex: 1,
     padding: SPACING.md,
+  },
+  infoBar: {
+    flexDirection: "row",
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  infoItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoIcon: {
+    fontSize: 16,
+    marginRight: 4,
+  },
+  infoText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: COLORS.textSecondary,
   },
   section: {
     marginBottom: SPACING.lg,

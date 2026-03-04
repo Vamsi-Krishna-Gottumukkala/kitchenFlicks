@@ -12,6 +12,7 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING, BORDER_RADIUS } from "../constants";
 import { useAuth } from "../hooks/useAuth";
 
@@ -65,7 +66,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.appIcon}>🍳</Text>
+          <Ionicons
+            name="restaurant"
+            size={46}
+            color="#FFFFFF"
+            style={{ marginBottom: SPACING.xs }}
+          />
           <Text style={styles.appName}>KitchenFlicks</Text>
         </View>
 

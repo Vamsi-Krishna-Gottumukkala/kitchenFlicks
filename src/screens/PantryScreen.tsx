@@ -8,13 +8,11 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING, BORDER_RADIUS } from "../constants";
 import { Recipe } from "../types";
 import { IngredientPicker, RecipeCard } from "../components";
-import {
-  searchRecipesByIngredients,
-  searchMealDB,
-} from "../services/recipeService";
+import { searchRecipesByIngredients } from "../services/recipeService";
 
 interface PantryScreenProps {
   onRecipePress: (recipe: Recipe) => void;
@@ -34,16 +32,11 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
     setIsLoading(true);
     setHasSearched(true);
     try {
-      // Search both local and MealDB
-      const searchTerm = selectedIngredients.join(" ");
-      const [localResults, mealDBResults] = await Promise.all([
-        searchRecipesByIngredients(selectedIngredients),
-        searchMealDB(selectedIngredients[0]), // MealDB searches by one ingredient
-      ]);
+      // Search local dataset only
+      const localResults =
+        await searchRecipesByIngredients(selectedIngredients);
 
-      // Combine and deduplicate
-      const combined = [...localResults, ...mealDBResults];
-      setRecipes(combined);
+      setRecipes(localResults);
     } catch (error) {
       console.error("Error searching recipes:", error);
     } finally {
@@ -61,7 +54,12 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerIcon}>🧊</Text>
+        <Ionicons
+          name="cube"
+          size={36}
+          color="#FFFFFF"
+          style={{ marginRight: SPACING.md }}
+        />
         <View>
           <Text style={styles.headerTitle}>Pantry to Plate</Text>
           <Text style={styles.headerSubtitle}>Select ingredients you have</Text>
@@ -74,7 +72,7 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
         <View style={styles.resultsContainer}>
           <View style={styles.resultsHeader}>
             <Text style={styles.resultsTitle}>
-              🍽️ Found {recipes.length} Recipes
+              Found {recipes.length} Recipes
             </Text>
             <TouchableOpacity onPress={handleClear}>
               <Text style={styles.clearText}>Start Over</Text>
@@ -117,7 +115,11 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
               </View>
             ) : hasSearched && recipes.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>😕</Text>
+                <Ionicons
+                  name="sad-outline"
+                  size={48}
+                  color={COLORS.textLight}
+                />
                 <Text style={styles.emptyText}>No recipes found</Text>
                 <Text style={styles.emptySubtext}>
                   Try different ingredients
@@ -139,7 +141,7 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
                 disabled={selectedIngredients.length === 0}
               >
                 <Text style={styles.findButtonText}>
-                  🔍 Find Recipes ({selectedIngredients.length} selected)
+                  Find Recipes ({selectedIngredients.length} selected)
                 </Text>
               </TouchableOpacity>
             )}

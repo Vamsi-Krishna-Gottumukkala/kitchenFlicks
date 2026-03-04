@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Dimensions,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   COLORS,
   SPACING,
@@ -21,10 +22,14 @@ import {
 import { Recipe } from "../types";
 import { RecipeCard } from "../components";
 import {
-  getRecipes,
-  getRandomMealDBRecipes,
-  searchMealDB,
+  getRecipes, // Used for Recommended
+  getTrendingRecipes, // Used for Most Popular
+  searchRecipesByName,
+  getRecipesByCategory,
 } from "../services/recipeService";
+import { getPublicUserRecipes } from "../services/userRecipeService";
+
+import { useAuth } from "../hooks/useAuth";
 
 interface HomeScreenProps {
   onRecipePress: (recipe: Recipe) => void;
@@ -33,8 +38,9 @@ interface HomeScreenProps {
 const { width } = Dimensions.get("window");
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [featuredRecipes, setFeaturedRecipes] = useState<Recipe[]>([]);
+  const { user } = useAuth();
+  const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([]);
+  const [trendingRecipes, setTrendingRecipes] = useState<Recipe[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -44,19 +50,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
 
   useEffect(() => {
     loadRecipes();
-  }, []);
+  }, [selectedCategory, user?.preferences]);
 
   const loadRecipes = async () => {
     setIsLoading(true);
     try {
-      // Load from both Firestore and MealDB
-      const [localRecipes, mealDBRecipes] = await Promise.all([
-        getRecipes(10),
-        getRandomMealDBRecipes(8),
-      ]);
+      if (selectedCategory === "all") {
+        // Load Recommended, Trending, and user-posted recipes
+        const [recommended, trending, userRecipes] = await Promise.all([
+          getRecipes(10, user?.preferences || []), // Pass user preferences to engine
+          getTrendingRecipes(10),
+          getPublicUserRecipes(),
+        ]);
 
-      setRecipes([...localRecipes, ...mealDBRecipes]);
-      setFeaturedRecipes(mealDBRecipes.slice(0, 3));
+        // Interleave user recipes into recommended for visibility
+        setRecommendedRecipes([...userRecipes.slice(0, 2), ...recommended]);
+        setTrendingRecipes(trending);
+      } else {
+        // Load by category
+        const categoryName =
+          RECIPE_CATEGORIES.find((c) => c.id === selectedCategory)?.name ||
+          "All";
+        const categoryResults = await getRecipesByCategory(categoryName);
+        setRecommendedRecipes(categoryResults);
+        setTrendingRecipes([]);
+      }
     } catch (error) {
       console.error("Error loading recipes:", error);
     } finally {
@@ -78,16 +96,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
 
     setIsSearching(true);
     try {
-      const results = await searchMealDB(searchQuery);
-      setSearchResults(results);
+      // Search across local JSON dataset and user-posted recipes
+      const [localResults, userRecipes] = await Promise.all([
+        searchRecipesByName(searchQuery),
+        getPublicUserRecipes(),
+      ]);
+
+      // Filter user recipes by search term
+      const filteredUserRecipes = userRecipes.filter((r) =>
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+
+      setSearchResults([...filteredUserRecipes, ...localResults]);
     } catch (error) {
       console.error("Search error:", error);
     } finally {
       setIsSearching(false);
     }
   };
-
-  const displayRecipes = searchQuery.trim() ? searchResults : recipes;
 
   return (
     <View style={styles.container}>
@@ -102,7 +128,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons
+            name="search"
+            size={18}
+            color={COLORS.textLight}
+            style={{ marginRight: SPACING.sm }}
+          />
           <TextInput
             style={styles.searchInput}
             value={searchQuery}
@@ -119,7 +150,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
                 setSearchResults([]);
               }}
             >
-              <Text style={styles.clearIcon}>✕</Text>
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={COLORS.textSecondary}
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -132,32 +167,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Featured Section */}
-        {!searchQuery && featuredRecipes.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>✨ Featured Recipes</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.featuredScroll}
-            >
-              {featuredRecipes.map((recipe) => (
-                <View key={recipe.id} style={styles.featuredCard}>
-                  <RecipeCard
-                    recipe={recipe}
-                    variant="featured"
-                    onPress={() => onRecipePress(recipe)}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Categories */}
         {!searchQuery && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🏷️ Categories</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: SPACING.md,
+              }}
+            >
+              <Ionicons
+                name="pricetag"
+                size={18}
+                color={COLORS.primary}
+                style={{ marginRight: SPACING.xs }}
+              />
+              <Text style={styles.sectionTitle}>Categories</Text>
+            </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -173,7 +200,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
-                  <Text style={styles.categoryIcon}>{category.icon}</Text>
+                  <Ionicons
+                    name={category.icon as any}
+                    size={16}
+                    color={
+                      selectedCategory === category.id
+                        ? "#FFFFFF"
+                        : COLORS.textSecondary
+                    }
+                    style={{ marginRight: SPACING.xs }}
+                  />
                   <Text
                     style={[
                       styles.categoryText,
@@ -189,42 +225,140 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
           </View>
         )}
 
-        {/* Recipe Grid */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {searchQuery ? `🔍 Search Results` : "🍽️ Discover Recipes"}
-          </Text>
+        {/* Search Results */}
+        {searchQuery ? (
+          <View style={styles.section}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: SPACING.md,
+              }}
+            >
+              <Ionicons
+                name="search"
+                size={20}
+                color={COLORS.primary}
+                style={{ marginRight: SPACING.xs }}
+              />
+              <Text style={styles.sectionTitle}>Search Results</Text>
+            </View>
 
-          {isLoading || isSearching ? (
-            <ActivityIndicator
-              size="large"
-              color={COLORS.primary}
-              style={styles.loader}
-            />
-          ) : displayRecipes.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🍽️</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery ? "No recipes found" : "No recipes yet"}
-              </Text>
-              <Text style={styles.emptySubtext}>
-                {searchQuery
-                  ? "Try a different search term"
-                  : "Pull to refresh"}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.recipeGrid}>
-              {displayRecipes.map((recipe) => (
-                <RecipeCard
-                  key={`${recipe.source}-${recipe.id}`}
-                  recipe={recipe}
-                  onPress={() => onRecipePress(recipe)}
+            {isLoading || isSearching ? (
+              <ActivityIndicator
+                size="large"
+                color={COLORS.primary}
+                style={styles.loader}
+              />
+            ) : searchResults.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="restaurant-outline"
+                  size={60}
+                  color={COLORS.textLight}
                 />
-              ))}
-            </View>
-          )}
-        </View>
+                <Text style={styles.emptyText}>No recipes found</Text>
+                <Text style={styles.emptySubtext}>
+                  Try a different search term
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.recipeGrid}>
+                {searchResults.map((recipe) => (
+                  <RecipeCard
+                    key={`search-${recipe.id}`}
+                    recipe={recipe}
+                    onPress={() => onRecipePress(recipe)}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          /* Normal Feeds (Not Searching) */
+          <>
+            {/* Recommended Section (formerly Featured) */}
+            {recommendedRecipes.length > 0 && (
+              <View style={styles.section}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: SPACING.md,
+                  }}
+                >
+                  <Ionicons
+                    name="star"
+                    size={20}
+                    color={COLORS.primary}
+                    style={{ marginRight: SPACING.xs }}
+                  />
+                  <Text style={styles.sectionTitle}>
+                    {selectedCategory === "all"
+                      ? "Recommended For You"
+                      : `${RECIPE_CATEGORIES.find((c) => c.id === selectedCategory)?.name} Recipes`}
+                  </Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.featuredScroll}
+                >
+                  {recommendedRecipes.map((recipe) => (
+                    <View key={`rec-${recipe.id}`} style={styles.featuredCard}>
+                      <RecipeCard
+                        recipe={recipe}
+                        variant="featured"
+                        onPress={() => onRecipePress(recipe)}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Trending / Most Popular Section */}
+            {trendingRecipes.length > 0 && selectedCategory === "all" && (
+              <View style={styles.section}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: SPACING.md,
+                  }}
+                >
+                  <Ionicons
+                    name="trending-up"
+                    size={20}
+                    color={COLORS.primary}
+                    style={{ marginRight: SPACING.xs }}
+                  />
+                  <Text style={styles.sectionTitle}>
+                    Trending & Most Popular
+                  </Text>
+                </View>
+
+                {isLoading ? (
+                  <ActivityIndicator
+                    size="large"
+                    color={COLORS.primary}
+                    style={styles.loader}
+                  />
+                ) : (
+                  <View style={styles.recipeGrid}>
+                    {trendingRecipes.map((recipe) => (
+                      <RecipeCard
+                        key={`trend-${recipe.id}`}
+                        recipe={recipe}
+                        onPress={() => onRecipePress(recipe)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
     </View>
   );

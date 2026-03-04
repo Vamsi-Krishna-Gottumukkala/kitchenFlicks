@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   COLORS,
   SPACING,
@@ -78,11 +79,22 @@ export const IngredientPicker: React.FC<IngredientPickerProps> = ({
               style={styles.categoryHeader}
               onPress={() => toggleCategory(category.name)}
             >
-              <Text style={styles.categoryIcon}>{category.icon}</Text>
+              <Ionicons
+                name={category.icon as any}
+                size={20}
+                color={COLORS.primary}
+                style={{ marginRight: SPACING.sm }}
+              />
               <Text style={styles.categoryName}>{category.name}</Text>
-              <Text style={styles.expandIcon}>
-                {expandedCategory === category.name ? "▼" : "▶"}
-              </Text>
+              <Ionicons
+                name={
+                  expandedCategory === category.name
+                    ? "chevron-down"
+                    : "chevron-forward"
+                }
+                size={16}
+                color={COLORS.textSecondary}
+              />
             </TouchableOpacity>
 
             {expandedCategory === category.name && (

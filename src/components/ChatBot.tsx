@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING, BORDER_RADIUS } from "../constants";
 import { ChatMessage, Recipe } from "../types";
 import {
@@ -103,14 +104,19 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <Text style={styles.headerIcon}>👨‍🍳</Text>
+            <Ionicons
+              name="restaurant"
+              size={28}
+              color={COLORS.primary}
+              style={{ marginRight: SPACING.sm }}
+            />
             <View>
               <Text style={styles.headerTitle}>AI Chef Assistant</Text>
               <Text style={styles.headerSubtitle}>Powered by Gemini</Text>
             </View>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeText}>✕</Text>
+            <Ionicons name="close" size={22} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -187,7 +193,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             onPress={() => sendMessage(inputText)}
             disabled={!inputText.trim() || isLoading}
           >
-            <Text style={styles.sendButtonText}>→</Text>
+            <Ionicons name="send" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -265,14 +271,15 @@ const styles = StyleSheet.create({
   },
   suggestionsContainer: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    maxHeight: 50,
   },
   suggestionChip: {
     backgroundColor: COLORS.card,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
     borderRadius: BORDER_RADIUS.round,
     marginRight: SPACING.sm,
     borderWidth: 1,

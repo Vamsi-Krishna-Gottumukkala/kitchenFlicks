@@ -48,17 +48,16 @@ export const API_KEYS = {
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  mealdb: "https://www.themealdb.com/api/json/v1/1",
   unsplash: "https://api.unsplash.com",
   gemini:
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
 };
 
 // Common ingredients for the Pantry feature
 export const INGREDIENT_CATEGORIES = [
   {
     name: "Proteins",
-    icon: "🥩",
+    icon: "nutrition-outline",
     ingredients: [
       "Chicken",
       "Beef",
@@ -72,7 +71,7 @@ export const INGREDIENT_CATEGORIES = [
   },
   {
     name: "Vegetables",
-    icon: "🥬",
+    icon: "leaf-outline",
     ingredients: [
       "Onion",
       "Tomato",
@@ -88,12 +87,12 @@ export const INGREDIENT_CATEGORIES = [
   },
   {
     name: "Dairy",
-    icon: "🧀",
+    icon: "water-outline",
     ingredients: ["Milk", "Cheese", "Butter", "Cream", "Yogurt", "Sour Cream"],
   },
   {
     name: "Grains",
-    icon: "🌾",
+    icon: "grid-outline",
     ingredients: [
       "Rice",
       "Pasta",
@@ -106,7 +105,7 @@ export const INGREDIENT_CATEGORIES = [
   },
   {
     name: "Spices",
-    icon: "🌶️",
+    icon: "flame-outline",
     ingredients: [
       "Salt",
       "Pepper",
@@ -121,7 +120,7 @@ export const INGREDIENT_CATEGORIES = [
   },
   {
     name: "Pantry",
-    icon: "🥫",
+    icon: "basket-outline",
     ingredients: [
       "Olive Oil",
       "Soy Sauce",
@@ -135,12 +134,18 @@ export const INGREDIENT_CATEGORIES = [
   },
 ];
 
-// Recipe categories for filtering
+// Recipe categories for filtering — aligned with actual dataset
 export const RECIPE_CATEGORIES = [
-  { id: "all", name: "All", icon: "🍽️" },
-  { id: "veg", name: "Vegetarian", icon: "🥗" },
-  { id: "nonveg", name: "Non-Veg", icon: "🍖" },
-  { id: "quick", name: "Under 30 Min", icon: "⏱️" },
-  { id: "dessert", name: "Desserts", icon: "🍰" },
-  { id: "breakfast", name: "Breakfast", icon: "🍳" },
+  { id: "all", name: "All", icon: "restaurant-outline" },
+  { id: "chicken", name: "Chicken", icon: "nutrition-outline" },
+  { id: "pasta", name: "Pasta", icon: "pizza-outline" },
+  { id: "salad", name: "Salads", icon: "leaf-outline" },
+  { id: "soup", name: "Soups", icon: "water-outline" },
+  { id: "breakfast", name: "Breakfast", icon: "cafe-outline" },
+  { id: "dessert", name: "Desserts", icon: "ice-cream-outline" },
+  { id: "seafood", name: "Seafood", icon: "fish-outline" },
+  { id: "beef", name: "Beef", icon: "flame-outline" },
+  { id: "vegetarian", name: "Vegetarian", icon: "flower-outline" },
+  { id: "baking", name: "Baking", icon: "ellipse-outline" },
+  { id: "drinks", name: "Drinks", icon: "wine-outline" },
 ];

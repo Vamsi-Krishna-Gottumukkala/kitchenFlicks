@@ -1,6 +1,13 @@
 // Main App Component with Navigation
 import React, { useState } from "react";
-import { StatusBar, SafeAreaView, StyleSheet, View, Text } from "react-native";
+import {
+  StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -13,6 +20,10 @@ import {
   FavoritesScreen,
   ProfileScreen,
   RecipeDetailScreen,
+  PostRecipeScreen,
+  MyRecipesScreen,
+  OfflineRecipesScreen,
+  OnboardingScreen,
 } from "./src/screens";
 import { Recipe } from "./src/types";
 import { COLORS } from "./src/constants";
@@ -21,63 +32,118 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // Tab Icon Component
-const TabIcon = ({ icon, focused }: { icon: string; focused: boolean }) => (
+const TabIcon = ({
+  icon,
+  focused,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  focused: boolean;
+}) => (
   <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
-    <Text style={styles.tabIconText}>{icon}</Text>
+    <Ionicons
+      name={icon}
+      size={24}
+      color={focused ? COLORS.primary : COLORS.textSecondary}
+    />
   </View>
 );
+
+// Serialize recipe dates to avoid React Navigation warning
+const serializeRecipe = (recipe: Recipe) => ({
+  ...recipe,
+  createdAt:
+    recipe.createdAt instanceof Date
+      ? recipe.createdAt.toISOString()
+      : recipe.createdAt,
+});
 
 // Main Tab Navigator
 const MainTabs = ({ navigation }: any) => {
   const handleRecipePress = (recipe: Recipe) => {
-    navigation.navigate("RecipeDetail", { recipe });
+    navigation.navigate("RecipeDetail", { recipe: serializeRecipe(recipe) });
   };
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
-        tabBarLabelStyle: styles.tabLabel,
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: styles.tabBar,
+          tabBarActiveTintColor: COLORS.primary,
+          tabBarInactiveTintColor: COLORS.textSecondary,
+          tabBarLabelStyle: styles.tabLabel,
         }}
       >
-        {() => <HomeScreen onRecipePress={handleRecipePress} />}
-      </Tab.Screen>
+        <Tab.Screen
+          name="Home"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon icon="home" focused={focused} />
+            ),
+          }}
+        >
+          {() => <HomeScreen onRecipePress={handleRecipePress} />}
+        </Tab.Screen>
 
-      <Tab.Screen
-        name="Pantry"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="🧊" focused={focused} />,
-        }}
-      >
-        {() => <PantryScreen onRecipePress={handleRecipePress} />}
-      </Tab.Screen>
+        <Tab.Screen
+          name="Pantry"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon icon="cube-outline" focused={focused} />
+            ),
+          }}
+        >
+          {() => <PantryScreen onRecipePress={handleRecipePress} />}
+        </Tab.Screen>
 
-      <Tab.Screen
-        name="Favorites"
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="❤️" focused={focused} />,
-        }}
-      >
-        {() => <FavoritesScreen onRecipePress={handleRecipePress} />}
-      </Tab.Screen>
+        <Tab.Screen
+          name="Post"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <View style={styles.postTabIcon}>
+                <Ionicons name="add" size={28} color="#FFFFFF" />
+              </View>
+            ),
+            tabBarLabel: () => null,
+          }}
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.navigate("PostRecipe");
+            },
+          }}
+        >
+          {() => <View />}
+        </Tab.Screen>
 
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
-        }}
-      />
-    </Tab.Navigator>
+        <Tab.Screen
+          name="Favorites"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon icon="heart" focused={focused} />
+            ),
+          }}
+        >
+          {() => <FavoritesScreen onRecipePress={handleRecipePress} />}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="Profile"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon icon="person" focused={focused} />
+            ),
+          }}
+        >
+          {() => (
+            <ProfileScreen
+              onNavigateToMyRecipes={() => navigation.navigate("MyRecipes")}
+              onNavigateToOffline={() => navigation.navigate("OfflineRecipes")}
+            />
+          )}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </View>
   );
 };
 
@@ -87,12 +153,11 @@ const AuthStack = () => {
     "login",
   );
 
-  // We use conditional rendering instead of a stack for simpler auth flow
   if (currentScreen === "login") {
     return (
       <LoginScreen
         onNavigateToRegister={() => setCurrentScreen("register")}
-        onLoginSuccess={() => {}} // Auth state change handles this
+        onLoginSuccess={() => {}}
       />
     );
   }
@@ -100,19 +165,24 @@ const AuthStack = () => {
   return (
     <RegisterScreen
       onNavigateToLogin={() => setCurrentScreen("login")}
-      onRegisterSuccess={() => {}} // Auth state change handles this
+      onRegisterSuccess={() => {}}
     />
   );
 };
 
 // Main App Navigation
 const AppNavigator = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingIcon}>🍳</Text>
+        <Ionicons
+          name="restaurant"
+          size={72}
+          color="#FFFFFF"
+          style={{ marginBottom: 16 }}
+        />
         <Text style={styles.loadingText}>KitchenFlicks</Text>
       </View>
     );
@@ -120,9 +190,16 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? (
+      {isAuthenticated && user ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
+          {!user.hasCompletedOnboarding ? (
+            <Stack.Screen name="Onboarding">
+              {() => <OnboardingScreen onComplete={refreshUser} />}
+            </Stack.Screen>
+          ) : (
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+          )}
+
           <Stack.Screen
             name="RecipeDetail"
             options={{
@@ -136,6 +213,60 @@ const AppNavigator = () => {
                 source={(route.params as any)?.recipe?.source}
                 initialRecipe={(route.params as any)?.recipe}
                 onBack={() => navigation.goBack()}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="PostRecipe"
+            options={{
+              presentation: "modal",
+              animation: "slide_from_bottom",
+            }}
+          >
+            {({ route, navigation }) => (
+              <PostRecipeScreen
+                editRecipe={(route.params as any)?.editRecipe}
+                onBack={() => navigation.goBack()}
+                onSuccess={() => navigation.goBack()}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="MyRecipes"
+            options={{
+              animation: "slide_from_right",
+            }}
+          >
+            {({ navigation }) => (
+              <MyRecipesScreen
+                onBack={() => navigation.goBack()}
+                onRecipePress={(recipe) =>
+                  navigation.navigate("RecipeDetail", {
+                    recipe: serializeRecipe(recipe),
+                  })
+                }
+                onEditRecipe={(recipe) =>
+                  navigation.navigate("PostRecipe", {
+                    editRecipe: serializeRecipe(recipe),
+                  })
+                }
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="OfflineRecipes"
+            options={{
+              animation: "slide_from_right",
+            }}
+          >
+            {({ navigation }) => (
+              <OfflineRecipesScreen
+                onBack={() => navigation.goBack()}
+                onRecipePress={(recipe) =>
+                  navigation.navigate("RecipeDetail", {
+                    recipe: serializeRecipe(recipe),
+                  })
+                }
               />
             )}
           </Stack.Screen>
@@ -207,5 +338,25 @@ const styles = StyleSheet.create({
   },
   tabIconText: {
     fontSize: 22,
+  },
+  postTabIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: -10,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  postTabIconText: {
+    fontSize: 28,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    marginTop: -2,
   },
 });

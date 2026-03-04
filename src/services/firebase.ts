@@ -1,6 +1,7 @@
 // Firebase configuration for KitchenFlicks
 // All keys are loaded from .env file
 import { initializeApp } from "firebase/app";
+// @ts-ignore — getReactNativePersistence exists at runtime in React Native
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";

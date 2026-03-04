@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING } from "../constants";
 import { Recipe } from "../types";
 import { RecipeCard } from "../components";
 import { useAuth } from "../hooks/useAuth";
-import { getRecipeById, getMealDBRecipeById } from "../services/recipeService";
+import { getRecipeById } from "../services/recipeService";
 
 interface FavoritesScreenProps {
   onRecipePress: (recipe: Recipe) => void;
@@ -39,16 +40,15 @@ export const FavoritesScreen: React.FC<FavoritesScreenProps> = ({
     try {
       const favoriteIds = user.favorites || [];
       const recipePromises = favoriteIds.map(async (id) => {
-        // Try local first, then MealDB
-        let recipe = await getRecipeById(id, "local");
-        if (!recipe) {
-          recipe = await getMealDBRecipeById(id);
-        }
+        // Fetch from local dataset or Firestore based on ID
+        let recipe = await getRecipeById(id);
         return recipe;
       });
 
       const results = await Promise.all(recipePromises);
-      setRecipes(results.filter((r): r is Recipe => r !== null));
+      setRecipes(
+        results.filter((r): r is Recipe => r !== null && r !== undefined),
+      );
     } catch (error) {
       console.error("Error loading favorites:", error);
     } finally {
@@ -74,13 +74,22 @@ export const FavoritesScreen: React.FC<FavoritesScreenProps> = ({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerIcon}>❤️</Text>
+        <Ionicons
+          name="heart"
+          size={26}
+          color="#FFFFFF"
+          style={{ marginRight: SPACING.sm }}
+        />
         <Text style={styles.headerTitle}>My Favorites</Text>
       </View>
 
       {recipes.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>💔</Text>
+          <Ionicons
+            name="heart-dislike-outline"
+            size={60}
+            color={COLORS.textLight}
+          />
           <Text style={styles.emptyText}>No favorites yet</Text>
           <Text style={styles.emptySubtext}>
             Tap the heart icon on recipes to save them here
