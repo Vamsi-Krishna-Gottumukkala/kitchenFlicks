@@ -1,51 +1,45 @@
-// Image service - uses free Unsplash Source CDN (no API key required)
-// Docs: https://source.unsplash.com/ (deprecated but still works)
-// Fallback: picsum.photos for guaranteed uptime
+// Image service — images are now pre-assigned in recipes.json at build time.
+// This file provides a simple fallback for user-posted recipes that have no image.
 
 const imageCache: Map<string, string> = new Map();
 
-// Slug-friendly keywords for common recipe terms
-const normalizeQuery = (recipeName: string): string => {
-  return recipeName
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .slice(0, 4) // Keep only first 4 words for tighter matches
-    .join(",");
-};
+// Pool of generic high-quality food photos from Unsplash CDN (no API key needed)
+const FALLBACK_FOOD_PHOTOS = [
+  "1546069901-5ec6a79120b0",
+  "1504674900247-0877df9cc836",
+  "1512621776951-a57141f2eefd",
+  "1498837167922-ddd27525d352",
+  "1467003909585-2f8a72700288",
+  "1529042410759-befb1204b468",
+  "1476224203421-74ec76854f64",
+  "1563379091339-03b21ab4a4f8",
+  "1547592180-85f173990554",
+  "1533089860892-a7c6f3a1d9e3",
+  "1525351484163-7529414344d8",
+  "1484723091739-30a097e8f929",
+];
 
 /**
- * Get a recipe image URL using the free Picsum Photos service as primary,
- * with a deterministic seed based on the recipe name (no API key needed).
+ * Returns a food photo URL for a recipe using the recipe title as a hash seed.
+ * This is used ONLY as a fallback for user-posted recipes that have no imageUrl.
+ * All local dataset recipes already have imageUrl pre-assigned in recipes.json.
  */
 export const getRecipeImage = async (recipeName: string): Promise<string> => {
-  const cacheKey = recipeName.toLowerCase();
-  if (imageCache.has(cacheKey)) {
-    return imageCache.get(cacheKey)!;
-  }
-
+  const key = recipeName.toLowerCase().trim();
+  if (imageCache.has(key)) return imageCache.get(key)!;
   const url = getPlaceholderImage(recipeName);
-  imageCache.set(cacheKey, url);
+  imageCache.set(key, url);
   return url;
 };
 
-/**
- * Deterministic image from picsum.photos — always returns an image, no API key.
- */
 export const getPlaceholderImage = (recipeName: string): string => {
-  const hash = recipeName.split("").reduce((acc, char) => {
-    return char.charCodeAt(0) + ((acc << 5) - acc);
-  }, 0);
-  const seed = Math.abs(hash) % 1000;
-  // Use a consistent food-looking picsum image
-  return `https://picsum.photos/seed/${seed}/600/400`;
+  const hash = recipeName
+    .split("")
+    .reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0);
+  const idx = Math.abs(hash) % FALLBACK_FOOD_PHOTOS.length;
+  return `https://images.unsplash.com/photo-${FALLBACK_FOOD_PHOTOS[idx]}?w=600&q=80`;
 };
 
-/**
- * Batch-fetch images (now instant since we use deterministic placeholder)
- */
 export const getRecipeImages = async (
   recipeNames: string[],
 ): Promise<Map<string, string>> => {
