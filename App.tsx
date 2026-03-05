@@ -24,6 +24,7 @@ import {
   MyRecipesScreen,
   OfflineRecipesScreen,
   OnboardingScreen,
+  EditProfileScreen,
 } from "./src/screens";
 import { Recipe } from "./src/types";
 import { COLORS } from "./src/constants";
@@ -139,6 +140,7 @@ const MainTabs = ({ navigation }: any) => {
             <ProfileScreen
               onNavigateToMyRecipes={() => navigation.navigate("MyRecipes")}
               onNavigateToOffline={() => navigation.navigate("OfflineRecipes")}
+              onNavigateToEditProfile={() => navigation.navigate("EditProfile")}
             />
           )}
         </Tab.Screen>
@@ -264,6 +266,20 @@ const AppNavigator = () => {
                     recipe: serializeRecipe(recipe),
                   })
                 }
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="EditProfile"
+            options={{
+              presentation: "card",
+              animation: "slide_from_right",
+            }}
+          >
+            {({ navigation }) => (
+              <EditProfileScreen
+                onBack={() => navigation.goBack()}
+                onSuccess={() => navigation.goBack()}
               />
             )}
           </Stack.Screen>

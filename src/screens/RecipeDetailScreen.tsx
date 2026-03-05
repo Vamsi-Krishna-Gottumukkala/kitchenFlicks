@@ -245,11 +245,11 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{recipe.title}</Text>
           <View style={styles.titleMeta}>
-            {recipe.category && (
+            {recipe.category ? (
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryText}>{recipe.category}</Text>
               </View>
-            )}
+            ) : null}
             {avgRating.count > 0 && (
               <View style={styles.ratingInline}>
                 <StarRating rating={avgRating.average} size={14} />

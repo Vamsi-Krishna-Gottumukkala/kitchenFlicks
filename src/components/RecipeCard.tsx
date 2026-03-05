@@ -71,11 +71,11 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
 
         {!isCompact && (
           <View style={styles.metaContainer}>
-            {recipe.category && (
+            {recipe.category ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{recipe.category}</Text>
               </View>
-            )}
+            ) : null}
           </View>
         )}
       </View>

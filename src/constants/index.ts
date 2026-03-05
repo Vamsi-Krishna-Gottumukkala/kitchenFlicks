@@ -138,9 +138,18 @@ export const INGREDIENT_CATEGORIES = [
 // Recipe categories for filtering
 export const RECIPE_CATEGORIES = [
   { id: "all", name: "All", icon: "restaurant-outline" },
+  { id: "breakfast", name: "Breakfast", icon: "cafe-outline" },
   { id: "veg", name: "Vegetarian", icon: "leaf-outline" },
   { id: "nonveg", name: "Non-Veg", icon: "nutrition-outline" },
-  { id: "quick", name: "Under 30 Min", icon: "timer-outline" },
+  { id: "vegan", name: "Vegan", icon: "leaf" },
+  { id: "seafood", name: "Seafood", icon: "fish-outline" },
+  { id: "dairy", name: "Dairy/Milk", icon: "water-outline" },
   { id: "dessert", name: "Desserts", icon: "ice-cream-outline" },
-  { id: "breakfast", name: "Breakfast", icon: "cafe-outline" },
+  { id: "beverage", name: "Beverages", icon: "wine-outline" },
+  { id: "snack", name: "Snacks", icon: "fast-food-outline" },
+  { id: "indian", name: "Indian", icon: "flame-outline" },
+  { id: "chinese", name: "Chinese", icon: "restaurant-outline" },
+  { id: "italian", name: "Italian", icon: "pizza-outline" },
+  { id: "mexican", name: "Mexican", icon: "flame" },
+  { id: "quick", name: "Under 30 Min", icon: "timer-outline" },
 ];

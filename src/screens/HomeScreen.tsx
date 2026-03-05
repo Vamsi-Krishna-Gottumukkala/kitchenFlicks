@@ -62,12 +62,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
       const [localRecipes, mealDBRecipes, userRecipes, recommended] =
         await Promise.all([
           getRecipes(10),
-          getRandomMealDBRecipes(8),
+          getRandomMealDBRecipes(12),
           getPublicUserRecipes(),
           getRecommendedRecipes(user, offlineRecipes),
         ]);
 
-      setRecipes([...localRecipes, ...userRecipes, ...mealDBRecipes]);
+      // Create a mixed, dynamic feed for "Discover Recipes"
+      const mixedFeed = [
+        ...localRecipes,
+        ...userRecipes,
+        ...mealDBRecipes,
+        ...recommended,
+      ].sort(() => 0.5 - Math.random());
+
+      // Ensure there are no duplicate IDs in the mixed feed
+      const uniqueFeed = mixedFeed.filter(
+        (v, i, a) => a.findIndex((t) => t.id === v.id) === i,
+      );
+
+      setRecipes(uniqueFeed);
       setRecommendedRecipes(recommended);
     } catch (error) {
       console.error("Error loading recipes:", error);
@@ -109,7 +122,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
     }
   };
 
-  const displayRecipes = searchQuery.trim() ? searchResults : recipes;
+  const getDisplayRecipes = () => {
+    let list = searchQuery.trim() ? searchResults : recipes;
+
+    if (selectedCategory !== "all" && !searchQuery.trim()) {
+      const categoryObj = RECIPE_CATEGORIES.find(
+        (c) => c.id === selectedCategory,
+      );
+      if (categoryObj) {
+        list = list.filter((r) => {
+          const rCat = (r.category || "").toLowerCase();
+
+          if (selectedCategory === "veg" && rCat.includes("vegetarian"))
+            return true;
+          if (
+            selectedCategory === "nonveg" &&
+            ["chicken", "beef", "pork", "lamb", "seafood", "fish", "meat"].some(
+              (m) => rCat.includes(m),
+            )
+          )
+            return true;
+          if (selectedCategory === "dairy" && rCat.includes("dairy"))
+            return true;
+
+          return (
+            rCat.includes(categoryObj.name.toLowerCase()) ||
+            rCat.includes(selectedCategory.toLowerCase())
+          );
+        });
+      }
+    }
+    return list;
+  };
+
+  const displayRecipes = getDisplayRecipes();
 
   return (
     <View style={styles.container}>

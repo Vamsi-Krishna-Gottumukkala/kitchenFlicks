@@ -16,11 +16,13 @@ import { getOfflineCount } from "../services/offlineService";
 interface ProfileScreenProps {
   onNavigateToMyRecipes?: () => void;
   onNavigateToOffline?: () => void;
+  onNavigateToEditProfile?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onNavigateToMyRecipes,
   onNavigateToOffline,
+  onNavigateToEditProfile,
 }) => {
   const { user, logout, isLoading } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -77,13 +79,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       />
       <View style={styles.menuContent}>
         <Text style={styles.menuTitle}>{title}</Text>
-        {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+        {subtitle ? <Text style={styles.menuSubtitle}>{subtitle}</Text> : null}
       </View>
-      {badge && (
+      {badge ? (
         <View style={styles.menuBadge}>
           <Text style={styles.menuBadgeText}>{badge}</Text>
         </View>
-      )}
+      ) : null}
       <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
     </TouchableOpacity>
   );
@@ -151,22 +153,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             icon="person-outline"
             title="Edit Profile"
             subtitle="Update your name and photo"
+            onPress={onNavigateToEditProfile}
           />
           <MenuItem icon="mail-outline" title="Email" subtitle={user?.email} />
-        </View>
-
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <View style={styles.menuSection}>
-          <MenuItem
-            icon="notifications-outline"
-            title="Notifications"
-            subtitle="Manage push notifications"
-          />
-          <MenuItem
-            icon="moon-outline"
-            title="Dark Mode"
-            subtitle="Coming soon"
-          />
         </View>
 
         <Text style={styles.sectionTitle}>About</Text>

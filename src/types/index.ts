@@ -77,6 +77,7 @@ export type RootStackParamList = {
   MyRecipes: undefined;
   OfflineRecipes: undefined;
   Search: { ingredients?: string[] };
+  EditProfile: undefined;
 };
 
 export type AuthStackParamList = {
