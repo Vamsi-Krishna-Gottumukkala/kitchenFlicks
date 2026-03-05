@@ -29,8 +29,9 @@
     "plugins": [],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "b99f1279-4f84-4762-b2b8-2ddb9b4c1821"
       }
-    }
+    },
+    "owner": "vamsikrishnagottumukkala"
   }
 }
