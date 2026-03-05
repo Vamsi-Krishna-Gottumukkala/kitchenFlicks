@@ -25,8 +25,11 @@ import {
   getRecipes,
   getRandomMealDBRecipes,
   searchMealDB,
+  getRecommendedRecipes,
 } from "../services/recipeService";
 import { getPublicUserRecipes } from "../services/userRecipeService";
+import { getOfflineRecipes } from "../services/offlineService";
+import { useAuth } from "../hooks/useAuth";
 
 interface HomeScreenProps {
   onRecipePress: (recipe: Recipe) => void;
@@ -43,6 +46,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     loadRecipes();
@@ -51,15 +56,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
   const loadRecipes = async () => {
     setIsLoading(true);
     try {
+      const offlineRecipes = await getOfflineRecipes();
+
       // Load from Firestore, MealDB, and user-posted recipes
-      const [localRecipes, mealDBRecipes, userRecipes] = await Promise.all([
-        getRecipes(10),
-        getRandomMealDBRecipes(8),
-        getPublicUserRecipes(),
-      ]);
+      const [localRecipes, mealDBRecipes, userRecipes, recommended] =
+        await Promise.all([
+          getRecipes(10),
+          getRandomMealDBRecipes(8),
+          getPublicUserRecipes(),
+          getRecommendedRecipes(user, offlineRecipes),
+        ]);
 
       setRecipes([...localRecipes, ...userRecipes, ...mealDBRecipes]);
-      setFeaturedRecipes(mealDBRecipes.slice(0, 3));
+      setRecommendedRecipes(recommended);
     } catch (error) {
       console.error("Error loading recipes:", error);
     } finally {
@@ -154,8 +163,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Featured Section */}
-        {!searchQuery && featuredRecipes.length > 0 && (
+        {/* Recommended Section */}
+        {!searchQuery && recommendedRecipes.length > 0 && (
           <View style={styles.section}>
             <View
               style={{
@@ -165,19 +174,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
               }}
             >
               <Ionicons
-                name="star"
+                name="sparkles"
                 size={20}
                 color={COLORS.primary}
                 style={{ marginRight: SPACING.xs }}
               />
-              <Text style={styles.sectionTitle}>Featured Recipes</Text>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
             </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.featuredScroll}
             >
-              {featuredRecipes.map((recipe) => (
+              {recommendedRecipes.map((recipe) => (
                 <View key={recipe.id} style={styles.featuredCard}>
                   <RecipeCard
                     recipe={recipe}

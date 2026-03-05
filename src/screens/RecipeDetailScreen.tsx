@@ -23,7 +23,11 @@ import {
   shareIngredientsList,
 } from "../components";
 import { getRecipeById } from "../services/recipeService";
-import { getUserRecipeById } from "../services/userRecipeService";
+import {
+  deleteUserRecipe,
+  getUserRecipeById,
+} from "../services/userRecipeService";
+import { trackRecipeView } from "../services/userService";
 import { getPlaceholderImage } from "../services/unsplashService";
 import { useAuth } from "../hooks/useAuth";
 import { addToFavorites, removeFromFavorites } from "../services/recipeService";
@@ -74,6 +78,9 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
     if (recipe) {
       checkDownloaded();
       loadRating();
+      if (user && recipe.category) {
+        trackRecipeView(user.id, recipe.category);
+      }
     }
   }, [recipe]);
 

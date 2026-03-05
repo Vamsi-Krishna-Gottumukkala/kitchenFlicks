@@ -237,3 +237,72 @@ export const removeFromFavorites = async (
     console.error("Error removing from favorites:", error);
   }
 };
+
+// ---------------------------------------------------------------------------
+// Recommendation Engine
+// ---------------------------------------------------------------------------
+export const getRecommendedRecipes = async (
+  user: any,
+  offlineRecipes: Recipe[] = [],
+): Promise<Recipe[]> => {
+  try {
+    const categoryCounts: Record<string, number> = {};
+
+    const incrementCategory = (cat?: string, weight = 1) => {
+      if (!cat) return;
+      // Normalize 'veg' to 'Vegetarian', 'dessert' to 'Dessert', etc.
+      let normalized = cat.toLowerCase();
+      if (normalized === "veg") normalized = "vegetarian";
+      if (normalized === "desserts") normalized = "dessert";
+      if (normalized === "all") return;
+
+      categoryCounts[normalized] = (categoryCounts[normalized] || 0) + weight;
+    };
+
+    // 1. Onboarding Preferences (Weight 2)
+    user?.preferences?.forEach((pref: string) => {
+      incrementCategory(pref, 2);
+    });
+
+    // 2. View History (Weight 1)
+    user?.viewHistory?.forEach((viewed: string) => {
+      incrementCategory(viewed, 1);
+    });
+
+    // 3. Offline/Downloaded Recipes (Weight 2)
+    offlineRecipes.forEach((recipe: Recipe) => {
+      incrementCategory(recipe.category, 2);
+    });
+
+    // Find the category with the highest count
+    let topCategory = "Dessert"; // default fallback
+    let maxCount = -1; // Ensure default is overridden if there's any data
+
+    for (const [cat, count] of Object.entries(categoryCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        topCategory = cat.charAt(0).toUpperCase() + cat.slice(1);
+      }
+    }
+
+    // Try to fetch by this exact top category
+    if (maxCount >= 0) {
+      try {
+        const recommendations = await getMealDBByCategory(topCategory);
+        if (recommendations && recommendations.length > 0) {
+          return recommendations.slice(0, 10);
+        }
+      } catch (e) {
+        console.warn(
+          "Failed to fetch exact recommended category, falling back",
+        );
+      }
+    }
+
+    // Fallback if that category had no results or user has no history
+    return await getRandomMealDBRecipes(6);
+  } catch (error) {
+    console.error("Error generating recommendations:", error);
+    return await getRandomMealDBRecipes(6);
+  }
+};

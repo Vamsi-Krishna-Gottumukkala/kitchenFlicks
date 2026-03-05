@@ -81,6 +81,35 @@ export const PostRecipeScreen: React.FC<PostRecipeScreenProps> = ({
 
     setIsSubmitting(true);
 
+    if (videoUrl.trim()) {
+      try {
+        const encodedUrl = encodeURIComponent(videoUrl.trim());
+        const response = await fetch(
+          `https://noembed.com/embed?url=${encodedUrl}`,
+        );
+        const data = await response.json();
+
+        if (
+          !data.title ||
+          !data.title.toLowerCase().includes(title.trim().toLowerCase())
+        ) {
+          Alert.alert(
+            "Verification Failed",
+            "The YouTube video title must contain the recipe name.",
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (error) {
+        Alert.alert(
+          "Error",
+          "Could not verify YouTube video. Make sure the URL is public and valid.",
+        );
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const ingredients = ingredientText
       .split("\n")
       .map((i) => i.trim())

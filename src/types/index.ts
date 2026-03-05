@@ -29,6 +29,9 @@ export interface User {
   favorites: string[];
   uploadedRecipes: string[];
   reviewCount?: number;
+  preferences?: string[];
+  viewHistory?: string[];
+  onboardingCompleted?: boolean;
   createdAt: Date;
 }
 
@@ -79,6 +82,7 @@ export type RootStackParamList = {
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  Onboarding: undefined;
 };
 
 export type MainTabParamList = {

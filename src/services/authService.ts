@@ -7,7 +7,7 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { User } from "../types";
 
@@ -36,6 +36,9 @@ export const registerUser = async (
       displayName,
       favorites: [],
       uploadedRecipes: [],
+      preferences: [],
+      viewHistory: [],
+      onboardingCompleted: false,
       createdAt: new Date(),
     };
 
@@ -82,6 +85,9 @@ export const loginUser = async (
       displayName: firebaseUser.displayName || email.split("@")[0],
       favorites: [],
       uploadedRecipes: [],
+      preferences: [],
+      viewHistory: [],
+      onboardingCompleted: false,
       createdAt: new Date(),
     };
 
@@ -131,6 +137,25 @@ export const getCurrentUser = async (): Promise<User | null> => {
   } catch (error) {
     console.error("Error fetching current user:", error);
     return null;
+  }
+};
+
+/**
+ * Mark onboarding as complete and save preferences
+ */
+export const completeOnboarding = async (
+  userId: string,
+  preferences: string[],
+): Promise<void> => {
+  try {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      preferences,
+      onboardingCompleted: true,
+    });
+  } catch (error) {
+    console.error("Error saving onboarding preferences:", error);
+    throw new Error("Failed to save preferences. Please try again.");
   }
 };
 

@@ -76,11 +76,6 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
                 <Text style={styles.badgeText}>{recipe.category}</Text>
               </View>
             )}
-            {recipe.source === "mealdb" && (
-              <View style={[styles.badge, styles.sourceBadge]}>
-                <Text style={styles.badgeText}>MealDB</Text>
-              </View>
-            )}
           </View>
         )}
       </View>

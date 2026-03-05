@@ -14,6 +14,7 @@ import {
   logoutUser,
   getCurrentUser,
   subscribeToAuthState,
+  completeOnboarding,
 } from "../services/authService";
 
 interface AuthContextType {
@@ -28,6 +29,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  completeOnboarding: (preferences: string[]) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -95,6 +97,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
   };
 
+  const finishOnboarding = async (preferences: string[]): Promise<void> => {
+    setIsLoading(true);
+    try {
+      if (user) {
+        await completeOnboarding(user.id, preferences);
+        setUser({ ...user, preferences, onboardingCompleted: true });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -105,6 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         register,
         logout,
         refreshUser,
+        completeOnboarding: finishOnboarding,
       }}
     >
       {children}
