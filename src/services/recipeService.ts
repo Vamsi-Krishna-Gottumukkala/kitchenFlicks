@@ -1,163 +1,65 @@
-// Recipe service - handles fetching recipes from Firestore and local dataset
+// Recipe service - handles fetching recipes from Firestore and TheMealDB API
 import {
   collection,
   query,
+  where,
   getDocs,
   getDoc,
   doc,
   limit,
+  orderBy,
+  addDoc,
   updateDoc,
   arrayUnion,
   arrayRemove,
+  DocumentData,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { Recipe } from "../types";
-import { getRecipeImage, getPlaceholderImage } from "./unsplashService";
+import { API_ENDPOINTS } from "../constants";
 
-// Import the processed dataset
-// In a real production app, this might be loaded lazily or stored in an SQLite DB
-// For this robust prototype, we bundle the 5000 optimized items directly.
-import localRecipesData from "../../assets/recipes.json";
-const localRecipes = localRecipesData as Recipe[];
-
-// Utility to ensure recipes have images
-const ensureRecipeImage = (recipe: Recipe): Recipe => {
-  if (!recipe.imageUrl || recipe.imageUrl === "") {
-    // Start async fetch in background, provide placeholder immediately
-    getRecipeImage(recipe.title).then((url) => {
-      // This won't update the current render synchronously, but populates cache
-      // and might trigger subsequent re-renders if state is managed carefully
-      recipe.imageUrl = url;
-    });
-    return { ...recipe, imageUrl: getPlaceholderImage(recipe.title) };
-  }
-  return recipe;
-};
-
-// --- DATASET QUERIES ---
-
-// Fetch recommended recipes (Home screen feed)
+// Fetch recipes from Firestore
 export const getRecipes = async (
   limitCount: number = 20,
-  userPreferences?: string[],
 ): Promise<Recipe[]> => {
   try {
-    if (!userPreferences || userPreferences.length === 0) {
-      // Fallback: Shuffle and pick limitCount recipes if no preferences
-      const shuffled = [...localRecipes].sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, limitCount).map(ensureRecipeImage);
-    }
+    const recipesRef = collection(db, "recipes");
+    const q = query(recipesRef, limit(limitCount));
+    const snapshot = await getDocs(q);
 
-    // Recommendation Engine: Score recipes based on preference overlap
-    const normalizedPrefs = userPreferences.map((p) => p.toLowerCase());
-
-    // Weight parameters
-    const PREF_MATCH_WEIGHT = 10;
-    const TITLE_MATCH_WEIGHT = 5;
-
-    const scoredRecipes = localRecipes.map((recipe) => {
-      let score = 0;
-
-      // Check recipe title
-      const titleLower = recipe.title.toLowerCase();
-      normalizedPrefs.forEach((pref) => {
-        if (titleLower.includes(pref)) {
-          score += TITLE_MATCH_WEIGHT;
-        }
-      });
-
-      // Check ingredients
-      const recipeIngredients = recipe.cleanedIngredients || [];
-      normalizedPrefs.forEach((pref) => {
-        if (recipeIngredients.some((ri) => ri.includes(pref))) {
-          score += PREF_MATCH_WEIGHT;
-        }
-      });
-
-      // Check category
-      if (
-        recipe.category &&
-        normalizedPrefs.includes(recipe.category.toLowerCase())
-      ) {
-        score += TITLE_MATCH_WEIGHT;
-      }
-
-      // Add a tiny bit of randomness to break ties and keep feed fresh
-      score += Math.random() * 2;
-
-      return { recipe, score };
-    });
-
-    // Filter out recipes with very low scores to ensure relevance, then sort
-    const recommended = scoredRecipes
-      .filter((sr) => sr.score > 2)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limitCount)
-      .map((sr) => ensureRecipeImage(sr.recipe));
-
-    // If perfectly matching recipes are too few, pad with random popular ones
-    if (recommended.length < limitCount) {
-      const needed = limitCount - recommended.length;
-      const fallbacks = [...localRecipes]
-        .sort((a, b) => (b.views || 0) - (a.views || 0))
-        .filter((r) => !recommended.find((rec) => rec.id === r.id))
-        .slice(0, needed)
-        .map(ensureRecipeImage);
-      return [...recommended, ...fallbacks];
-    }
-
-    return recommended;
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      source: "local" as const,
+    })) as Recipe[];
   } catch (error) {
     console.error("Error fetching recipes:", error);
     return [];
   }
 };
 
-// Get most popular/trending recipes (highest views)
-export const getTrendingRecipes = async (
-  limitCount: number = 20,
-): Promise<Recipe[]> => {
-  try {
-    const sorted = [...localRecipes].sort(
-      (a, b) => (b.views || 0) - (a.views || 0),
-    );
-    return sorted.slice(0, limitCount).map(ensureRecipeImage);
-  } catch (error) {
-    console.error("Error fetching trending recipes:", error);
-    return [];
-  }
-};
-
-// Search recipes by exact name matching
-export const searchRecipesByName = async (
-  searchTerm: string,
-): Promise<Recipe[]> => {
-  try {
-    const term = searchTerm.toLowerCase();
-    const results = localRecipes.filter((r) =>
-      r.title.toLowerCase().includes(term),
-    );
-    // Sort by shortest titles first (most exact matches)
-    return results
-      .sort((a, b) => a.title.length - b.title.length)
-      .slice(0, 30) // Limit to 30 for performance
-      .map(ensureRecipeImage);
-  } catch (error) {
-    console.error("Error searching recipes by name:", error);
-    return [];
-  }
-};
-
-// Search recipes by ingredients (Pantry feature)
+// Search recipes by ingredients
 export const searchRecipesByIngredients = async (
   ingredients: string[],
 ): Promise<Recipe[]> => {
   try {
+    // Normalize ingredients to lowercase
     const normalizedIngredients = ingredients.map((i) => i.toLowerCase());
 
+    // Fetch from Firestore - we'll filter client-side for ingredient matching
+    const recipesRef = collection(db, "recipes");
+    const snapshot = await getDocs(query(recipesRef, limit(100)));
+
+    const recipes = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      source: "local" as const,
+    })) as Recipe[];
+
     // Score recipes by how many ingredients match
-    const scoredRecipes = localRecipes.map((recipe) => {
-      const recipeIngredients = recipe.cleanedIngredients || [];
+    const scoredRecipes = recipes.map((recipe) => {
+      const recipeIngredients =
+        recipe.cleanedIngredients?.map((i) => i.toLowerCase()) || [];
       const matchCount = normalizedIngredients.filter((ing) =>
         recipeIngredients.some((ri) => ri.includes(ing)),
       ).length;
@@ -172,8 +74,7 @@ export const searchRecipesByIngredients = async (
     return scoredRecipes
       .filter((sr) => sr.matchCount > 0)
       .sort((a, b) => b.matchCount - a.matchCount)
-      .slice(0, 50)
-      .map((sr) => ensureRecipeImage(sr.recipe));
+      .map((sr) => sr.recipe);
   } catch (error) {
     console.error("Error searching recipes:", error);
     return [];
@@ -183,15 +84,13 @@ export const searchRecipesByIngredients = async (
 // Fetch recipe by ID
 export const getRecipeById = async (
   id: string,
-  source: "local" | "local_dataset" = "local",
+  source: "local" | "mealdb" = "local",
 ): Promise<Recipe | null> => {
   try {
-    if (source === "local_dataset") {
-      const recipe = localRecipes.find((r) => r.id === id);
-      return recipe ? ensureRecipeImage(recipe) : null;
+    if (source === "mealdb") {
+      return await getMealDBRecipeById(id);
     }
 
-    // User-posted recipes are still in Firestore under 'recipes'
     const docRef = doc(db, "recipes", id);
     const docSnap = await getDoc(docRef);
 
@@ -205,67 +104,112 @@ export const getRecipeById = async (
   }
 };
 
-// Category filter — matches by keyword in title or ingredients
-// This works because the dataset doesn't store categories, so we match by content
-export const getRecipesByCategory = async (
-  category: string,
-  limitCount: number = 20,
-): Promise<Recipe[]> => {
+// TheMealDB API Integration
+export const searchMealDB = async (searchTerm: string): Promise<Recipe[]> => {
   try {
-    if (category === "all") {
-      const shuffled = [...localRecipes].sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, limitCount).map(ensureRecipeImage);
-    }
+    const response = await fetch(
+      `${API_ENDPOINTS.mealdb}/search.php?s=${encodeURIComponent(searchTerm)}`,
+    );
+    const data = await response.json();
 
-    const term = category.toLowerCase();
+    if (!data.meals) return [];
 
-    // "vegetarian" — special case: exclude common meat keywords
-    if (term === "vegetarian") {
-      const meatKeywords = [
-        "chicken",
-        "beef",
-        "pork",
-        "lamb",
-        "shrimp",
-        "salmon",
-        "tuna",
-        "bacon",
-        "turkey",
-      ];
-      const vegRecipes = localRecipes.filter((r) => {
-        const fullText = (
-          r.title +
-          " " +
-          r.cleanedIngredients.join(" ")
-        ).toLowerCase();
-        return !meatKeywords.some((m) => fullText.includes(m));
-      });
-      return vegRecipes.slice(0, limitCount).map(ensureRecipeImage);
-    }
-
-    // General: match category keyword against title and ingredients
-    const results = localRecipes.filter((r) => {
-      const titleMatch = r.title.toLowerCase().includes(term);
-      const ingMatch = r.cleanedIngredients.some((i) => i.includes(term));
-      return titleMatch || ingMatch;
-    });
-
-    // Sort: title matches first
-    results.sort((a, b) => {
-      const aTitle = a.title.toLowerCase().includes(term) ? 0 : 1;
-      const bTitle = b.title.toLowerCase().includes(term) ? 0 : 1;
-      return aTitle - bTitle;
-    });
-
-    return results.slice(0, limitCount).map(ensureRecipeImage);
+    return data.meals.map((meal: any) => convertMealDBToRecipe(meal));
   } catch (error) {
-    console.error("Error fetching category:", error);
+    console.error("Error searching MealDB:", error);
     return [];
   }
 };
 
-// --- USER FAVORITES ---
+export const getMealDBRecipeById = async (
+  id: string,
+): Promise<Recipe | null> => {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.mealdb}/lookup.php?i=${id}`);
+    const data = await response.json();
 
+    if (!data.meals || data.meals.length === 0) return null;
+
+    return convertMealDBToRecipe(data.meals[0]);
+  } catch (error) {
+    console.error("Error fetching MealDB recipe:", error);
+    return null;
+  }
+};
+
+export const getRandomMealDBRecipes = async (
+  count: number = 10,
+): Promise<Recipe[]> => {
+  try {
+    const recipes: Recipe[] = [];
+    for (let i = 0; i < count; i++) {
+      const response = await fetch(`${API_ENDPOINTS.mealdb}/random.php`);
+      const data = await response.json();
+      if (data.meals && data.meals.length > 0) {
+        recipes.push(convertMealDBToRecipe(data.meals[0]));
+      }
+    }
+    return recipes;
+  } catch (error) {
+    console.error("Error fetching random recipes:", error);
+    return [];
+  }
+};
+
+export const getMealDBByCategory = async (
+  category: string,
+): Promise<Recipe[]> => {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.mealdb}/filter.php?c=${encodeURIComponent(category)}`,
+    );
+    const data = await response.json();
+
+    if (!data.meals) return [];
+
+    // Filter endpoint returns limited data, we need to fetch full details
+    return data.meals.slice(0, 10).map((meal: any) => ({
+      id: meal.idMeal,
+      title: meal.strMeal,
+      imageUrl: meal.strMealThumb,
+      ingredients: [],
+      cleanedIngredients: [],
+      instructions: "",
+      source: "mealdb" as const,
+    }));
+  } catch (error) {
+    console.error("Error fetching MealDB category:", error);
+    return [];
+  }
+};
+
+// Convert MealDB response to our Recipe type
+const convertMealDBToRecipe = (meal: any): Recipe => {
+  // Extract ingredients (MealDB uses strIngredient1-20)
+  const ingredients: string[] = [];
+  for (let i = 1; i <= 20; i++) {
+    const ingredient = meal[`strIngredient${i}`];
+    const measure = meal[`strMeasure${i}`];
+    if (ingredient && ingredient.trim()) {
+      ingredients.push(`${measure?.trim() || ""} ${ingredient.trim()}`.trim());
+    }
+  }
+
+  return {
+    id: meal.idMeal,
+    title: meal.strMeal,
+    ingredients,
+    cleanedIngredients: ingredients.map((i) => i.toLowerCase()),
+    instructions: meal.strInstructions || "",
+    imageUrl: meal.strMealThumb || "",
+    imageName: meal.strMeal.toLowerCase().replace(/\s+/g, "-"),
+    category: meal.strCategory,
+    videoUrl: meal.strYoutube || undefined,
+    source: "mealdb",
+  };
+};
+
+// User favorites management
 export const addToFavorites = async (
   userId: string,
   recipeId: string,

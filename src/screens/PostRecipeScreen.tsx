@@ -81,98 +81,48 @@ export const PostRecipeScreen: React.FC<PostRecipeScreenProps> = ({
 
     setIsSubmitting(true);
 
+    const ingredients = ingredientText
+      .split("\n")
+      .map((i) => i.trim())
+      .filter(Boolean);
+
+    const recipeData: Omit<UserRecipe, "id"> = {
+      title: title.trim(),
+      ingredients,
+      cleanedIngredients: ingredients.map((i) => i.toLowerCase()),
+      instructions: instructions.trim(),
+      imageUrl: imageUrl.trim(),
+      imageName: title.toLowerCase().replace(/\s+/g, "-"),
+      category: category || "Main Course",
+      videoUrl: videoUrl.trim() || undefined,
+      prepTime: prepTime ? parseInt(prepTime) : undefined,
+      servings: servings ? parseInt(servings) : undefined,
+      source: "user",
+      createdBy: user.id,
+      isPublic: true,
+    };
+
     try {
-      // YouTube Video Verification
-      let isVideoVerified = false;
-      const finalVideoUrl = videoUrl.trim();
-
-      if (finalVideoUrl) {
-        try {
-          const oembedRes = await fetch(
-            `https://youtube.com/oembed?url=${encodeURIComponent(finalVideoUrl)}&format=json`,
-          );
-          if (oembedRes.ok) {
-            const videoData = await oembedRes.json();
-            const videoTitle = videoData.title.toLowerCase();
-            const recipeTitle = title.trim().toLowerCase();
-
-            // Verify: Does video title contain the recipe name?
-            if (videoTitle.includes(recipeTitle)) {
-              isVideoVerified = true;
-            } else {
-              setIsSubmitting(false);
-              Alert.alert(
-                "Verification Failed",
-                `Your video is titled "${videoData.title}" which doesn't seem to match your recipe "${title}". Please provide a matching video.`,
-              );
-              return;
-            }
-          } else {
-            setIsSubmitting(false);
-            Alert.alert(
-              "Invalid Video",
-              "We couldn't verify that YouTube URL. Please make sure it is public and correct.",
-            );
-            return;
-          }
-        } catch (e) {
-          setIsSubmitting(false);
-          Alert.alert("Error", "Could not verify YouTube video at this time.");
-          return;
-        }
-      }
-
-      const ingredients = ingredientText
-        .split("\n")
-        .map((i) => i.trim())
-        .filter(Boolean);
-
-      const recipeData: Omit<UserRecipe, "id"> = {
-        title: title.trim(),
-        ingredients,
-        cleanedIngredients: ingredients.map((i) => i.toLowerCase()),
-        instructions: instructions.trim(),
-        imageUrl: imageUrl.trim(),
-        imageName: title.toLowerCase().replace(/\s+/g, "-"),
-        category: category || "Main Course",
-        videoUrl: finalVideoUrl || undefined,
-        prepTime: prepTime ? parseInt(prepTime) : undefined,
-        servings: servings ? parseInt(servings) : undefined,
-        source: "user",
-        createdBy: user.id, // Fixed user ID reference from types
-        isPublic: true,
-      };
-
-      // In a real app we would add the isVideoVerified flag to the DB via UserRecipe type
-      if (isVideoVerified) {
-        (recipeData as any).isVideoVerified = true;
-      }
-
       if (isEditing && editRecipe) {
         const success = await updateRecipe(editRecipe.id, recipeData);
         if (success) {
-          Alert.alert(
-            isVideoVerified ? "Verified & Updated! ✅" : "Updated!",
-            "Your recipe has been updated.",
-            [{ text: "OK", onPress: onSuccess || onBack }],
-          );
+          Alert.alert("Updated!", "Your recipe has been updated.", [
+            { text: "OK", onPress: onSuccess || onBack },
+          ]);
         } else {
           Alert.alert("Error", "Failed to update recipe.");
         }
       } else {
-        const id = await createRecipe(recipeData, user.id); // Fixed user ID reference from types
+        const id = await createRecipe(recipeData, user.id);
         if (id) {
-          Alert.alert(
-            isVideoVerified ? "Verified & Posted! ✅" : "Posted! 🎉",
-            "Your recipe is now live.",
-            [{ text: "OK", onPress: onSuccess || onBack }],
-          );
+          Alert.alert("Posted! 🎉", "Your recipe is now live.", [
+            { text: "OK", onPress: onSuccess || onBack },
+          ]);
         } else {
           Alert.alert("Error", "Failed to post recipe.");
         }
       }
     } catch (error) {
-      console.error(error);
       Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);

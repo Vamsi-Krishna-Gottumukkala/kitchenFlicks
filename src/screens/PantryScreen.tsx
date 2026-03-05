@@ -12,7 +12,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, SPACING, BORDER_RADIUS } from "../constants";
 import { Recipe } from "../types";
 import { IngredientPicker, RecipeCard } from "../components";
-import { searchRecipesByIngredients } from "../services/recipeService";
+import {
+  searchRecipesByIngredients,
+  searchMealDB,
+} from "../services/recipeService";
 
 interface PantryScreenProps {
   onRecipePress: (recipe: Recipe) => void;
@@ -32,11 +35,16 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
     setIsLoading(true);
     setHasSearched(true);
     try {
-      // Search local dataset only
-      const localResults =
-        await searchRecipesByIngredients(selectedIngredients);
+      // Search both local and MealDB
+      const searchTerm = selectedIngredients.join(" ");
+      const [localResults, mealDBResults] = await Promise.all([
+        searchRecipesByIngredients(selectedIngredients),
+        searchMealDB(selectedIngredients[0]), // MealDB searches by one ingredient
+      ]);
 
-      setRecipes(localResults);
+      // Combine and deduplicate
+      const combined = [...localResults, ...mealDBResults];
+      setRecipes(combined);
     } catch (error) {
       console.error("Error searching recipes:", error);
     } finally {

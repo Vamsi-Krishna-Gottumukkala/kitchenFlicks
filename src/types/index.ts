@@ -18,8 +18,7 @@ export interface Recipe {
   videoUrl?: string;
   createdBy?: string;
   createdAt?: Date;
-  source?: "local" | "mealdb" | "user" | "local_dataset";
-  views?: number;
+  source?: "local" | "mealdb" | "user";
 }
 
 export interface User {
@@ -30,8 +29,6 @@ export interface User {
   favorites: string[];
   uploadedRecipes: string[];
   reviewCount?: number;
-  preferences?: string[];
-  hasCompletedOnboarding?: boolean;
   createdAt: Date;
 }
 

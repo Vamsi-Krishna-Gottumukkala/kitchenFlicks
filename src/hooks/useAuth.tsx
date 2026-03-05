@@ -1,4 +1,4 @@
-// Authentication provider and hook
+// Auth context hook for managing authentication state
 import React, {
   createContext,
   useContext,
@@ -6,8 +6,8 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { User } from "../types";
 import { User as FirebaseUser } from "firebase/auth";
+import { User } from "../types";
 import {
   loginUser,
   registerUser,
@@ -15,9 +15,6 @@ import {
   getCurrentUser,
   subscribeToAuthState,
 } from "../services/authService";
-import { auth, db } from "../services/firebase";
-import { updateProfile } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 interface AuthContextType {
   user: User | null;
@@ -31,8 +28,6 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  updateProfileImage: (url: string) => Promise<void>;
-  updateUserPreferences: (prefs: string[]) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -100,34 +95,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(userData);
   };
 
-  const updateProfileImage = async (url: string) => {
-    if (!user || !auth.currentUser) return;
-    try {
-      await updateProfile(auth.currentUser, { photoURL: url });
-      const userRef = doc(db, "users", user.id);
-      await updateDoc(userRef, { profileImageUrl: url });
-      setUser({ ...user, photoURL: url });
-    } catch (error) {
-      console.error("Error updating profile image:", error);
-      throw error;
-    }
-  };
-
-  const updateUserPreferences = async (prefs: string[]) => {
-    if (!user) return;
-    try {
-      const userRef = doc(db, "users", user.id);
-      await updateDoc(userRef, {
-        preferences: prefs,
-        hasCompletedOnboarding: true,
-      });
-      setUser({ ...user, preferences: prefs, hasCompletedOnboarding: true });
-    } catch (error) {
-      console.error("Error saving preferences:", error);
-      throw error;
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -138,8 +105,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         register,
         logout,
         refreshUser,
-        updateProfileImage,
-        updateUserPreferences,
       }}
     >
       {children}

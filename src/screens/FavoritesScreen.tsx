@@ -13,7 +13,7 @@ import { COLORS, SPACING } from "../constants";
 import { Recipe } from "../types";
 import { RecipeCard } from "../components";
 import { useAuth } from "../hooks/useAuth";
-import { getRecipeById } from "../services/recipeService";
+import { getRecipeById, getMealDBRecipeById } from "../services/recipeService";
 
 interface FavoritesScreenProps {
   onRecipePress: (recipe: Recipe) => void;
@@ -40,15 +40,16 @@ export const FavoritesScreen: React.FC<FavoritesScreenProps> = ({
     try {
       const favoriteIds = user.favorites || [];
       const recipePromises = favoriteIds.map(async (id) => {
-        // Fetch from local dataset or Firestore based on ID
-        let recipe = await getRecipeById(id);
+        // Try local first, then MealDB
+        let recipe = await getRecipeById(id, "local");
+        if (!recipe) {
+          recipe = await getMealDBRecipeById(id);
+        }
         return recipe;
       });
 
       const results = await Promise.all(recipePromises);
-      setRecipes(
-        results.filter((r): r is Recipe => r !== null && r !== undefined),
-      );
+      setRecipes(results.filter((r): r is Recipe => r !== null));
     } catch (error) {
       console.error("Error loading favorites:", error);
     } finally {

@@ -33,22 +33,10 @@ import {
   removeOfflineRecipe,
 } from "../services/offlineService";
 import { getAverageRating } from "../services/reviewService";
-import { RouteProp } from "@react-navigation/native"; // Assuming RouteProp comes from here
-
-interface RecipeDetailRouteProp extends RouteProp<
-  {
-    RecipeDetail: {
-      recipeId?: string;
-      source?: "local" | "user" | "local_dataset";
-      recipe?: Recipe;
-    };
-  },
-  "RecipeDetail"
-> {}
 
 interface RecipeDetailScreenProps {
   recipeId: string;
-  source?: "local" | "user" | "local_dataset";
+  source?: "local" | "mealdb" | "user";
   initialRecipe?: Recipe;
   onBack: () => void;
 }
@@ -96,7 +84,10 @@ export const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({
       if (source === "user") {
         fetchedRecipe = await getUserRecipeById(recipeId);
       } else {
-        fetchedRecipe = await getRecipeById(recipeId);
+        fetchedRecipe = await getRecipeById(
+          recipeId,
+          source as "local" | "mealdb",
+        );
       }
       setRecipe(fetchedRecipe);
     } catch (error) {

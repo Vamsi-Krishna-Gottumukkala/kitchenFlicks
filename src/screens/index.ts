@@ -9,4 +9,3 @@ export { FavoritesScreen } from "./FavoritesScreen";
 export { PostRecipeScreen } from "./PostRecipeScreen";
 export { MyRecipesScreen } from "./MyRecipesScreen";
 export { OfflineRecipesScreen } from "./OfflineRecipesScreen";
-export { OnboardingScreen } from "./OnboardingScreen";

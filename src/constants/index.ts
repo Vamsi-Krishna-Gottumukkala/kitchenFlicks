@@ -48,9 +48,10 @@ export const API_KEYS = {
 
 // API Endpoints
 export const API_ENDPOINTS = {
+  mealdb: "https://www.themealdb.com/api/json/v1/1",
   unsplash: "https://api.unsplash.com",
   gemini:
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
 };
 
 // Common ingredients for the Pantry feature
@@ -134,18 +135,12 @@ export const INGREDIENT_CATEGORIES = [
   },
 ];
 
-// Recipe categories for filtering — aligned with actual dataset
+// Recipe categories for filtering
 export const RECIPE_CATEGORIES = [
   { id: "all", name: "All", icon: "restaurant-outline" },
-  { id: "chicken", name: "Chicken", icon: "nutrition-outline" },
-  { id: "pasta", name: "Pasta", icon: "pizza-outline" },
-  { id: "salad", name: "Salads", icon: "leaf-outline" },
-  { id: "soup", name: "Soups", icon: "water-outline" },
-  { id: "breakfast", name: "Breakfast", icon: "cafe-outline" },
+  { id: "veg", name: "Vegetarian", icon: "leaf-outline" },
+  { id: "nonveg", name: "Non-Veg", icon: "nutrition-outline" },
+  { id: "quick", name: "Under 30 Min", icon: "timer-outline" },
   { id: "dessert", name: "Desserts", icon: "ice-cream-outline" },
-  { id: "seafood", name: "Seafood", icon: "fish-outline" },
-  { id: "beef", name: "Beef", icon: "flame-outline" },
-  { id: "vegetarian", name: "Vegetarian", icon: "flower-outline" },
-  { id: "baking", name: "Baking", icon: "ellipse-outline" },
-  { id: "drinks", name: "Drinks", icon: "wine-outline" },
+  { id: "breakfast", name: "Breakfast", icon: "cafe-outline" },
 ];

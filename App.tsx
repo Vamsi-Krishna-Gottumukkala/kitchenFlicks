@@ -23,7 +23,6 @@ import {
   PostRecipeScreen,
   MyRecipesScreen,
   OfflineRecipesScreen,
-  OnboardingScreen,
 } from "./src/screens";
 import { Recipe } from "./src/types";
 import { COLORS } from "./src/constants";
@@ -172,7 +171,7 @@ const AuthStack = () => {
 
 // Main App Navigation
 const AppNavigator = () => {
-  const { isAuthenticated, isLoading, user, refreshUser } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -190,16 +189,9 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      {isAuthenticated && user ? (
+      {isAuthenticated ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {!user.hasCompletedOnboarding ? (
-            <Stack.Screen name="Onboarding">
-              {() => <OnboardingScreen onComplete={refreshUser} />}
-            </Stack.Screen>
-          ) : (
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-          )}
-
+          <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen
             name="RecipeDetail"
             options={{
