@@ -4,7 +4,7 @@
     "slug": "kitchenflicks",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/splash-icon.png",
         "backgroundColor": "#FF6B35"
       },
       "package": "com.kitchenflicks.app"
@@ -29,7 +29,7 @@
     "plugins": [],
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "b99f1279-4f84-4762-b2b8-2ddb9b4c1821"
       }
     }
   }
