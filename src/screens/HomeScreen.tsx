@@ -26,6 +26,7 @@ import {
   getRandomMealDBRecipes,
   searchMealDB,
   getRecommendedRecipes,
+  getMealDBByCategory,
 } from "../services/recipeService";
 import { getPublicUserRecipes } from "../services/userRecipeService";
 import { getOfflineRecipes } from "../services/offlineService";
@@ -43,6 +44,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [categoryRecipes, setCategoryRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -122,37 +124,57 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
     }
   };
 
-  const getDisplayRecipes = () => {
-    let list = searchQuery.trim() ? searchResults : recipes;
+  const handleCategorySelect = async (categoryId: string) => {
+    setSelectedCategory(categoryId);
 
-    if (selectedCategory !== "all" && !searchQuery.trim()) {
-      const categoryObj = RECIPE_CATEGORIES.find(
-        (c) => c.id === selectedCategory,
-      );
-      if (categoryObj) {
-        list = list.filter((r) => {
-          const rCat = (r.category || "").toLowerCase();
-
-          if (selectedCategory === "veg" && rCat.includes("vegetarian"))
-            return true;
-          if (
-            selectedCategory === "nonveg" &&
-            ["chicken", "beef", "pork", "lamb", "seafood", "fish", "meat"].some(
-              (m) => rCat.includes(m),
-            )
-          )
-            return true;
-          if (selectedCategory === "dairy" && rCat.includes("dairy"))
-            return true;
-
-          return (
-            rCat.includes(categoryObj.name.toLowerCase()) ||
-            rCat.includes(selectedCategory.toLowerCase())
-          );
-        });
-      }
+    if (categoryId === "all") {
+      setCategoryRecipes([]);
+      return;
     }
-    return list;
+
+    const categoryObj = RECIPE_CATEGORIES.find((c) => c.id === categoryId);
+
+    // If the category has an API endpoint, fetch fresh data
+    if (categoryObj && categoryObj.apiType && categoryObj.apiValue) {
+      setIsLoading(true);
+      try {
+        const typeParam = categoryObj.apiType === "category" ? "c" : "a";
+        const results = await getMealDBByCategory(
+          categoryObj.apiValue,
+          typeParam,
+        );
+        setCategoryRecipes(results);
+      } catch (error) {
+        console.error("Error fetching category:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else if (categoryObj) {
+      // Local filtering for things like Quick, Veg, NonVeg without an apiType, or if we fallback
+      const filtered = recipes.filter((r) => {
+        const rCat = (r.category || "").toLowerCase();
+        if (categoryId === "veg" && rCat.includes("vegetarian")) return true;
+        if (
+          categoryId === "nonveg" &&
+          ["chicken", "beef", "pork", "lamb", "seafood", "fish", "meat"].some(
+            (m) => rCat.includes(m),
+          )
+        )
+          return true;
+        if (categoryId === "dairy" && rCat.includes("dairy")) return true;
+        return (
+          rCat.includes(categoryObj.name.toLowerCase()) ||
+          rCat.includes(categoryId.toLowerCase())
+        );
+      });
+      setCategoryRecipes(filtered);
+    }
+  };
+
+  const getDisplayRecipes = () => {
+    if (searchQuery.trim()) return searchResults;
+    if (selectedCategory !== "all") return categoryRecipes;
+    return recipes;
   };
 
   const displayRecipes = getDisplayRecipes();
@@ -276,7 +298,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onRecipePress }) => {
                     selectedCategory === category.id &&
                       styles.categoryChipActive,
                   ]}
-                  onPress={() => setSelectedCategory(category.id)}
+                  onPress={() => handleCategorySelect(category.id)}
                 >
                   <Ionicons
                     name={category.icon as any}

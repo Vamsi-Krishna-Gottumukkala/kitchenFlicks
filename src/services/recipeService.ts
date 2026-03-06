@@ -137,6 +137,51 @@ export const getMealDBRecipeById = async (
   }
 };
 
+export const searchMealDBByIngredients = async (
+  ingredients: string[],
+): Promise<Recipe[]> => {
+  if (!ingredients.length) return [];
+
+  // User requested Pantry to return ALL recipes matching ANY of the ingredients (Union)
+  // We'll fetch the recipes for each ingredient independently, map the IDs, and then combine them.
+  try {
+    const fetchPromises = ingredients.map(async (ingredient) => {
+      const formattedIng = ingredient.trim().toLowerCase().replace(/\s+/g, "_");
+      const res = await fetch(
+        `${API_ENDPOINTS.mealdb}/filter.php?i=${encodeURIComponent(formattedIng)}`,
+      );
+      const data = await res.json();
+      return data.meals || [];
+    });
+
+    // Array of arrays containing the basic MealDB objects (idMeal, strMeal, strMealThumb)
+    const listsOfMeals = await Promise.all(fetchPromises);
+
+    // Flatten and deduplicate by idMeal
+    const uniqueMealsMap = new Map();
+    listsOfMeals.flat().forEach((meal: any) => {
+      if (!uniqueMealsMap.has(meal.idMeal)) {
+        uniqueMealsMap.set(meal.idMeal, meal);
+      }
+    });
+    const uniqueMeals = Array.from(uniqueMealsMap.values());
+
+    if (uniqueMeals.length === 0) return [];
+
+    // The filter endpoint only returns id, title, and image. We need the full details.
+    // Fetch up to 20 matches to be perfectly safe while not spamming the API too hard.
+    const topMatches = uniqueMeals.slice(0, 20);
+    const detailedRecipesPromises = topMatches.map((meal: any) =>
+      getMealDBRecipeById(meal.idMeal),
+    );
+    const detailedRecipes = await Promise.all(detailedRecipesPromises);
+    return detailedRecipes.filter((r): r is Recipe => r !== null);
+  } catch (error) {
+    console.error("Error searching MealDB by ingredients:", error);
+    return [];
+  }
+};
+
 export const getRandomMealDBRecipes = async (
   count: number = 10,
 ): Promise<Recipe[]> => {
@@ -157,26 +202,25 @@ export const getRandomMealDBRecipes = async (
 };
 
 export const getMealDBByCategory = async (
-  category: string,
+  value: string,
+  type: "c" | "a" = "c",
 ): Promise<Recipe[]> => {
   try {
     const response = await fetch(
-      `${API_ENDPOINTS.mealdb}/filter.php?c=${encodeURIComponent(category)}`,
+      `${API_ENDPOINTS.mealdb}/filter.php?${type}=${encodeURIComponent(value)}`,
     );
     const data = await response.json();
 
-    if (!data.meals) return [];
+    if (!data || !data.meals || !Array.isArray(data.meals)) return [];
 
-    // Filter endpoint returns limited data, we need to fetch full details
-    return data.meals.slice(0, 10).map((meal: any) => ({
-      id: meal.idMeal,
-      title: meal.strMeal,
-      imageUrl: meal.strMealThumb,
-      ingredients: [],
-      cleanedIngredients: [],
-      instructions: "",
-      source: "mealdb" as const,
-    }));
+    // Filter endpoint returns limited data. Fetch full details for the top 15 matches.
+    const topMatches = data.meals.slice(0, 15);
+    const detailedRecipesPromises = topMatches.map((meal: any) =>
+      getMealDBRecipeById(meal.idMeal),
+    );
+    const detailedRecipes = await Promise.all(detailedRecipesPromises);
+
+    return detailedRecipes.filter((r): r is Recipe => r !== null);
   } catch (error) {
     console.error("Error fetching MealDB category:", error);
     return [];

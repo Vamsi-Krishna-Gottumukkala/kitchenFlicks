@@ -14,7 +14,7 @@ import { Recipe } from "../types";
 import { IngredientPicker, RecipeCard } from "../components";
 import {
   searchRecipesByIngredients,
-  searchMealDB,
+  searchMealDBByIngredients,
 } from "../services/recipeService";
 
 interface PantryScreenProps {
@@ -35,11 +35,10 @@ export const PantryScreen: React.FC<PantryScreenProps> = ({
     setIsLoading(true);
     setHasSearched(true);
     try {
-      // Search both local and MealDB
-      const searchTerm = selectedIngredients.join(" ");
+      // Search both local and MealDB (now supporting proper multi-ingredient intersection)
       const [localResults, mealDBResults] = await Promise.all([
         searchRecipesByIngredients(selectedIngredients),
-        searchMealDB(selectedIngredients[0]), // MealDB searches by one ingredient
+        searchMealDBByIngredients(selectedIngredients),
       ]);
 
       // Combine and deduplicate

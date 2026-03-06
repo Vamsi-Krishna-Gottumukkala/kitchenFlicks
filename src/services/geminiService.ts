@@ -49,7 +49,14 @@ Ingredients: ${recipeContext.ingredients.join(", ")}
 Instructions: ${recipeContext.instructions.substring(0, 500)}...`;
     }
 
-    // Build message history for context
+    // Build message history for context ensuring strict alternation
+    // The previous messages start from index 1 because index 0 in the UI is a static greeting
+    const userRoleHistory = chatHistory.slice(1).map((msg) => ({
+      role: msg.role === "user" ? "user" : "model",
+      parts: [{ text: msg.content }],
+    }));
+
+    // Ensure the last message is from the user (which it should be, based on our call setup)
     const messages = [
       {
         role: "user",
@@ -57,31 +64,38 @@ Instructions: ${recipeContext.instructions.substring(0, 500)}...`;
       },
       {
         role: "model",
-        parts: [
-          {
-            text: "Hello! I'm your cooking assistant. How can I help you today?",
-          },
-        ],
+        parts: [{ text: "Acknowledged. I am ready to cook!" }],
       },
-      ...chatHistory.slice(-6).map((msg) => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }],
-      })),
+      ...userRoleHistory,
       {
         role: "user",
         parts: [{ text: message }],
       },
     ];
 
+    // Combine any consecutive messages of the same role (Gemini requires strict user/model alternation)
+    const mergedMessages: any[] = [];
+    for (const msg of messages) {
+      if (
+        mergedMessages.length > 0 &&
+        mergedMessages[mergedMessages.length - 1].role === msg.role
+      ) {
+        mergedMessages[mergedMessages.length - 1].parts[0].text +=
+          "\n" + msg.parts[0].text;
+      } else {
+        mergedMessages.push(msg);
+      }
+    }
+
     const response = await fetch(
-      `${API_ENDPOINTS.gemini}?key=${API_KEYS.gemini}`,
+      `${API_ENDPOINTS.gemini}?key=${API_KEYS.gemini.trim()}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: messages,
+          contents: mergedMessages,
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 500,

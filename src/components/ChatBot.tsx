@@ -93,118 +93,132 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      animationType="fade"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Ionicons
-              name="restaurant"
-              size={28}
-              color={COLORS.primary}
-              style={{ marginRight: SPACING.sm }}
-            />
-            <View>
-              <Text style={styles.headerTitle}>AI Chef Assistant</Text>
-              <Text style={styles.headerSubtitle}>Powered by Gemini</Text>
-            </View>
-          </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={22} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd()}
+      <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {messages.map((message) => (
-            <View
-              key={message.id}
-              style={[
-                styles.messageBubble,
-                message.role === "user"
-                  ? styles.userMessage
-                  : styles.assistantMessage,
-              ]}
-            >
-              <Text
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <Ionicons
+                name="restaurant"
+                size={28}
+                color={COLORS.primary}
+                style={{ marginRight: SPACING.sm }}
+              />
+              <View>
+                <Text style={styles.headerTitle}>AI Chef Assistant</Text>
+                <Text style={styles.headerSubtitle}>Powered by Gemini</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={22} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Messages */}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd()}
+          >
+            {messages.map((message) => (
+              <View
+                key={message.id}
                 style={[
-                  styles.messageText,
-                  message.role === "user" && styles.userMessageText,
+                  styles.messageBubble,
+                  message.role === "user"
+                    ? styles.userMessage
+                    : styles.assistantMessage,
                 ]}
               >
-                {message.content}
-              </Text>
-            </View>
-          ))}
-
-          {isLoading && (
-            <View style={[styles.messageBubble, styles.assistantMessage]}>
-              <ActivityIndicator size="small" color={COLORS.primary} />
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Quick suggestions */}
-        {messages.length <= 2 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.suggestionsContainer}
-          >
-            {quickSuggestions.map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.suggestionChip}
-                onPress={() => handleQuickSuggestion(suggestion)}
-              >
-                <Text style={styles.suggestionText}>{suggestion}</Text>
-              </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.messageText,
+                    message.role === "user" && styles.userMessageText,
+                  ]}
+                >
+                  {message.content}
+                </Text>
+              </View>
             ))}
-          </ScrollView>
-        )}
 
-        {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Ask me anything about cooking..."
-            placeholderTextColor={COLORS.textLight}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              !inputText.trim() && styles.sendButtonDisabled,
-            ]}
-            onPress={() => sendMessage(inputText)}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Ionicons name="send" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            {isLoading && (
+              <View style={[styles.messageBubble, styles.assistantMessage]}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Quick suggestions */}
+          {messages.length <= 2 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.suggestionsContainer}
+            >
+              {quickSuggestions.map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionChip}
+                  onPress={() => handleQuickSuggestion(suggestion)}
+                >
+                  <Text style={styles.suggestionText}>{suggestion}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Ask me anything..."
+              placeholderTextColor={COLORS.textLight}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                !inputText.trim() && styles.sendButtonDisabled,
+              ]}
+              onPress={() => sendMessage(inputText)}
+              disabled={!inputText.trim() || isLoading}
+            >
+              <Ionicons name="send" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING.lg,
+  },
+  container: {
+    width: "100%",
+    maxWidth: 600,
+    height: "80%",
+    maxHeight: 800,
     backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: "hidden",
   },
   header: {
     flexDirection: "row",
