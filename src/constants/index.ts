@@ -51,7 +51,7 @@ export const API_ENDPOINTS = {
   mealdb: "https://www.themealdb.com/api/json/v1/1",
   unsplash: "https://api.unsplash.com",
   gemini:
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
 };
 
 // Common ingredients for the Pantry feature

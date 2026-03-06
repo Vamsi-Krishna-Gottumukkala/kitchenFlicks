@@ -11,7 +11,11 @@ Your role is to help users with:
 - Suggesting variations of dishes
 - Providing nutritional insights
 
-Keep your responses concise, helpful, and encouraging. 
+IMPORTANT FORMATTING RULES:
+1. Keep your responses short, concise, and highly structured (1-2 short paragraphs maximum).
+2. DO NOT use Markdown bolding (like **this**) anywhere in your response. Use plain text only.
+3. Be helpful and encouraging, but get straight to the point.
+
 If the user is asking about a specific recipe, use the context provided.
 Always be supportive of beginner cooks while also providing advanced tips when needed.`;
 
@@ -98,7 +102,7 @@ Instructions: ${recipeContext.instructions.substring(0, 500)}...`;
           contents: mergedMessages,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 500,
+            maxOutputTokens: 1000,
           },
         }),
       },
